@@ -17,199 +17,113 @@ In         Out
 
 #include <iostream>
 #include <stdexcept>
-
-template <typename T>
-class Array {
-    public:
-        Array() : size(0), capacity(5) { arr = new T[capacity]; }
-
-        ~Array() { delete[] arr; }
-
-        Array(const Array& other) : size(other.size), capacity(other.capacity) {
-            arr = new T[capacity];
-            for (int i = 0; i < size; ++i) {
-                arr[i] = other.arr[i];
-            }
-        }
-
-        Array& operator=(const Array& other) {
-            if (this != &other) {
-                delete[] arr;
-
-                size = other.size;
-                capacity = other.capacity;
-
-                arr = new T[capacity];
-                for (int i = 0; i < size; ++i) {
-                    arr[i] = other.arr[i];
-                }
-            }
-            return *this;
-        }
-
-        T& operator[](int i) {
-            if (i < 0 || i >= size) {
-                throw std::out_of_range("Index out of range");
-            }
-            return arr[i];
-        }
-
-        const T& operator[](int i) const {
-            if (i < 0 || i >= size) {
-                throw std::out_of_range("Index out of range");
-            }
-            return arr[i];
-        }
-
-        void add(T element) {
-            if (size >= capacity) {
-                extend();
-            }
-            arr[size++] = element;
-        }
-
-        bool contains(T element) const {
-            for (int i = 0; i < size; ++i) {
-                if (arr[i] == element) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        void addUnique(T element) {
-            if (!contains(element)) {
-                add(element);
-            }
-        }
-
-        bool isEmpty() const { return size == 0; }
-
-        int getSize() const { return size; }
-
-        friend std::ostream& operator<<(std::ostream& out, const Array& array) {
-            out << "[ ";
-            for (int i = 0; i < array.size; ++i) {
-                out << array[i];
-                if (i < array.size - 1) {
-                    out << ", ";
-                }
-            }
-            out << " ]";
-            return out;
-        }
-
-    private:
-        T* arr;
-        int size = 0;
-        int capacity = 5;
-
-        void extend() {
-            capacity *= 2;
-            T* newArr = new T[capacity];
-            for (int i = 0; i < size; ++i) {
-                newArr[i] = arr[i];
-            }
-
-            delete[] arr;
-            arr = newArr;
-        }
-};
+#include <new>
 
 struct Client {
     int arrivalTime = 0;
     int leavingTime = 0;
-    Client() = default;
-    Client(int arrival, int leaving) : arrivalTime(arrival), leavingTime(leaving) {}
-    ~Client() = default;
 
     friend std::istream& operator>>(std::istream& input, Client& client) {
         input >> client.arrivalTime >> client.leavingTime;
         return input;
     }
-
-    friend std::ostream& operator<<(std::ostream& out, const Client& client) {
-        out << "(" << client.arrivalTime << ", " << client.leavingTime << ")";
-        return out;
-    }
 };
 
-template <typename T>
-struct MergeSortComparator {
-    bool operator()(const T& c1, const T& c2) const {
-        if (c1.leavingTime == c2.leavingTime) {
-            return c1.arrivalTime < c2.arrivalTime;
-        } else {
-            return c1.leavingTime < c2.leavingTime;
-        }
+bool compareClients(const Client& c1, const Client& c2) {
+    if (c1.leavingTime == c2.leavingTime) {
+        return c1.arrivalTime < c2.arrivalTime;
     }
-};
+    return c1.leavingTime < c2.leavingTime;
+}
 
-template <typename T, typename Comparator>
-Array<T> merge(const Array<T>& arr1, const Array<T>& arr2, Comparator comp) {
-    Array<T> result;
+void merge(Client* arr, int l, int m, int r) {
+    int n1 = m - l + 1;
+    int n2 = r - m;
+
+    //буферы
+    Client* L = new(std::nothrow) Client[n1];
+    Client* R = new(std::nothrow) Client[n2];
+
+    if (L == nullptr || R == nullptr) {
+        delete[] L;
+        delete[] R;
+        throw std::bad_alloc();
+    }
+
+    for (int i = 0; i < n1; i++) {
+        L[i] = arr[l + i];
+    }
+    for (int j = 0; j < n2; j++) {
+        R[j] = arr[m + 1 + j];
+    }
+
     int i = 0;
     int j = 0;
-    int n1 = arr1.getSize();
-    int n2 = arr2.getSize();
+    int k = l;
 
     while (i < n1 && j < n2) {
-        if (comp(arr1[i], arr2[j])) {
-            result.add(arr1[i]);
-            ++i;
+        if (compareClients(L[i], R[j])) {
+            arr[k] = L[i];
+            i++;
         } else {
-            result.add(arr2[j]);
-            ++j;
+            arr[k] = R[j];
+            j++;
         }
+        k++;
     }
 
     while (i < n1) {
-        result.add(arr1[i]);
-        ++i;
+        arr[k] = L[i];
+        i++;
+        k++;
     }
+
     while (j < n2) {
-        result.add(arr2[j]);
-        ++j;
+        arr[k] = R[j];
+        j++;
+        k++;
     }
 
-    return result;
+    delete[] L;
+    delete[] R;
 }
 
-template <typename T, typename Comparator>
-Array<T> mergeSort(const Array<T>& arr, Comparator comp) {
-    int size = arr.getSize();
-    if (size <= 1) {
-        return arr;
+
+void mergeSort(Client* arr, int l, int r) {
+    if (l < r) {
+        int m = l + (r - l) / 2;
+
+        mergeSort(arr, l, m);
+        mergeSort(arr, m + 1, r);
+
+        merge(arr, l, m, r);
     }
-
-    int mid = size / 2;
-    Array<T> left;
-    Array<T> right;
-
-    for (int i = 0; i < mid; ++i) {
-        left.add(arr[i]);
-    }
-    for (int i = mid; i < size; ++i) {
-        right.add(arr[i]);
-    }
-
-    Array<T> sortedLeft = mergeSort(left, comp);
-    Array<T> sortedRight = mergeSort(right, comp);
-
-    return merge(sortedLeft, sortedRight, comp);
 }
 
-int calculateMinAdvertisements(const Array<Client>& clients) {
-    Array<int> ad_times;
+int calculateMinAdvertisements(Client* clients, int clientCount) {
+    if (clientCount == 0) return 0;
 
-    for (int i = 0; i < clients.getSize(); ++i) {
+
+    // максимум 2n реклам
+    int max_ad_count = clientCount * 2;
+    int* ad_times = new(std::nothrow) int[max_ad_count];
+    if (ad_times == nullptr) throw std::bad_alloc();
+    int ad_size = 0;
+
+    try {
+        mergeSort(clients, 0, clientCount - 1);
+    } catch (...) {
+        delete[] ad_times;
+        throw;
+    }
+
+    for (int i = 0; i < clientCount; ++i) {
         const Client& currentClient = clients[i];
         int l = currentClient.arrivalTime;
         int r = currentClient.leavingTime;
 
         int seen_count = 0;
-
-        for (int j = 0; j < ad_times.getSize(); ++j) {
+        for (int j = 0; j < ad_size; ++j) {
             int ad_time = ad_times[j];
             if (ad_time >= l && ad_time <= r) {
                 seen_count++;
@@ -219,44 +133,75 @@ int calculateMinAdvertisements(const Array<Client>& clients) {
         int needed = 2 - seen_count;
 
         if (needed > 0) {
+            int t1 = r;
+            bool t1_exists = false;
+            for (int j = 0; j < ad_size; ++j) {
+                if (ad_times[j] == t1) {
+                    t1_exists = true;
+                    break;
+                }
+            }
 
-            //предотвращениe дубликатов
-            if (!ad_times.contains(r)) {
-                ad_times.add(r);
+            if (!t1_exists) {
+                ad_times[ad_size++] = t1;
                 needed--;
             }
 
+            // показ 2 (если еще нужен): в r-1
             if (needed > 0) {
                 int t2 = r - 1;
 
-                if (t2 >= l && !ad_times.contains(t2)) {
-                    ad_times.add(t2);
+                if (t2 >= l) {
+
+                    bool t2_exists = false;
+                    for (int j = 0; j < ad_size; ++j) {
+                        if (ad_times[j] == t2) {
+                            t2_exists = true;
+                            break;
+                        }
+                    }
+
+                    if (!t2_exists) {
+                        ad_times[ad_size++] = t2;
+                    }
                 }
             }
         }
     }
-    return ad_times.getSize();
+
+    int result = ad_size;
+    delete[] ad_times;
+    return result;
 }
 
 int main() {
+    // ускорение ввода/вывода
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(NULL);
+
     int n;
-
-    if (!(std::cin >> n))
+    if (!(std::cin >> n) || n <= 0) {
         return 0;
-
-    Array<Client> arr;
-    for (int i = 0; i < n; ++i) {
-        Client client;
-        if (!(std::cin >> client))
-            break;
-        arr.add(client);
     }
 
-    MergeSortComparator<Client> comp;
-    Array<Client> sorted = mergeSort(arr, comp);
+    Client* clients = new(std::nothrow) Client[n];
+    if (clients == nullptr) {
+        std::cerr << "Error: Failed to allocate memory for clients.\n";
+        return 1;
+    }
 
-    int result = calculateMinAdvertisements(sorted);
-    std::cout << result << std::endl;
+    for (int i = 0; i < n; ++i) {
+        if (!(std::cin >> clients[i])) {
+            n = i;
+            break;
+        }
+    }
 
+    int result = 0;
+
+    result = calculateMinAdvertisements(clients, n);
+    std::cout << result << "\n";
+
+    delete[] clients;
     return 0;
 }
