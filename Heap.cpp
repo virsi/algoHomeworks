@@ -36,15 +36,11 @@ public:
     }
 
     Heap& operator=(const Heap& other) {
-        if (this == &other) return *this;
-        clear();
-        comparator = other.comparator;
-        _size = other._size;
-        _capacity = other._capacity;
-        if (_capacity) {
-            data = new T[_capacity];
-            for (size_t i = 0; i < _size; ++i) data[i] = other.data[i];
-        }
+        Heap temp(other);
+        std::swap(comparator, temp.comparator);
+        std::swap(data, temp.data);
+        std::swap(_size, temp._size);
+        std::swap(_capacity, temp._capacity);
         return *this;
     }
 
@@ -62,14 +58,16 @@ public:
 
     void push(const T& value) {
         ensure_capacity_for_push();
-        data[_size++] = value;
-        sift_up(_size - 1);
+        data[_size] = value;
+        sift_up(_size);
+        ++_size;
     }
 
     void push(T&& value) {
         ensure_capacity_for_push();
-        data[_size++] = std::move(value);
-        sift_up(_size - 1);
+        data[_size] = value;
+        sift_up(_size);
+        ++_size;
     }
 
     void pop() {
@@ -131,9 +129,9 @@ struct Technux {
     Technux() : P(0), t(0), T(0) {}
     ~Technux() {}
 
-    int P, t, T;
+    long long P, t, T;
 
-    int getValue() const {
+    long long getValue() const {
         return P * (t + 1);
     }
 
