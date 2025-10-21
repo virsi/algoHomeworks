@@ -26,8 +26,6 @@ class Array {
         ~Array() { delete[] arr; }
 
         Array(const Array& other) : size(other.size), capacity(other.capacity) {
-            if (!capacity)
-                arr = nullptr;
             arr = new T[capacity];
             for (int i = 0; i < size; ++i) {
                 arr[i] = other.arr[i];
@@ -70,6 +68,21 @@ class Array {
             arr[size++] = element;
         }
 
+        bool contains(T element) const {
+            for (int i = 0; i < size; ++i) {
+                if (arr[i] == element) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void addUnique(T element) {
+            if (!contains(element)) {
+                add(element);
+            }
+        }
+
         bool isEmpty() const { return size == 0; }
 
         int getSize() const { return size; }
@@ -92,44 +105,44 @@ class Array {
         int capacity = 5;
 
         void extend() {
-            T* newArr = new T[capacity * 2];
+            capacity *= 2;
+            T* newArr = new T[capacity];
             for (int i = 0; i < size; ++i) {
                 newArr[i] = arr[i];
             }
 
             delete[] arr;
             arr = newArr;
-            capacity *= 2;
         }
 };
 
 struct Client {
-        int arrivalTime = 0;
-        int leavingTime = 0;
-        Client() : arrivalTime(0), leavingTime(0) {}
-        Client(int arrival, int leaving) : arrivalTime(arrival), leavingTime(leaving) {}
-        ~Client() {}
+    int arrivalTime = 0;
+    int leavingTime = 0;
+    Client() = default;
+    Client(int arrival, int leaving) : arrivalTime(arrival), leavingTime(leaving) {}
+    ~Client() = default;
 
-        friend std::istream& operator>>(std::istream& input, Client& client) {
-            input >> client.arrivalTime >> client.leavingTime;
-            return input;
-        }
+    friend std::istream& operator>>(std::istream& input, Client& client) {
+        input >> client.arrivalTime >> client.leavingTime;
+        return input;
+    }
 
-        friend std::ostream& operator<<(std::ostream& out, const Client& client) {
-            out << "(" << client.arrivalTime << ", " << client.leavingTime << ")";
-            return out;
-        }
+    friend std::ostream& operator<<(std::ostream& out, const Client& client) {
+        out << "(" << client.arrivalTime << ", " << client.leavingTime << ")";
+        return out;
+    }
 };
 
 template <typename T>
 struct MergeSortComparator {
-        bool operator()(const T& c1, const T& c2) const {
-            if (c1.leavingTime == c2.leavingTime) {
-                return c1.arrivalTime < c2.arrivalTime;
-            } else {
-                return c1.leavingTime < c2.leavingTime;
-            }
+    bool operator()(const T& c1, const T& c2) const {
+        if (c1.leavingTime == c2.leavingTime) {
+            return c1.arrivalTime < c2.arrivalTime;
+        } else {
+            return c1.leavingTime < c2.leavingTime;
         }
+    }
 };
 
 template <typename T, typename Comparator>
@@ -162,7 +175,6 @@ Array<T> merge(const Array<T>& arr1, const Array<T>& arr2, Comparator comp) {
     return result;
 }
 
-// Рекурсивная сортировка слиянием
 template <typename T, typename Comparator>
 Array<T> mergeSort(const Array<T>& arr, Comparator comp) {
     int size = arr.getSize();
@@ -188,98 +200,63 @@ Array<T> mergeSort(const Array<T>& arr, Comparator comp) {
 }
 
 int calculateMinAdvertisements(const Array<Client>& clients) {
-    Array<int> ads;
+    Array<int> ad_times;
 
     for (int i = 0; i < clients.getSize(); ++i) {
-        int l = clients[i].arrivalTime;
-        int r = clients[i].leavingTime;
+        const Client& currentClient = clients[i];
+        int l = currentClient.arrivalTime;
+        int r = currentClient.leavingTime;
 
-        int seen = 0;
-        for (int j = 0; j < ads.getSize(); ++j) {
-            if (ads[j] >= l && ads[j] <= r) {
-                ++seen;
+        int seen_count = 0;
+
+        for (int j = 0; j < ad_times.getSize(); ++j) {
+            int ad_time = ad_times[j];
+            if (ad_time >= l && ad_time <= r) {
+                seen_count++;
             }
         }
 
-        if (seen == 0) {
-            // две рекламы: в r-1 и r
-            ads.add(r - 1);
-            ads.add(r);
-        } else if (seen == 1) {
-            // только одна реклама в r
-            bool exists = false;
-            for (int j = 0; j < ads.getSize(); ++j) {
-                if (ads[j] == r) {
-                    exists = true;
-                    break;
+        int needed = 2 - seen_count;
+
+        if (needed > 0) {
+
+            //предотвращениe дубликатов
+            if (!ad_times.contains(r)) {
+                ad_times.add(r);
+                needed--;
+            }
+
+            if (needed > 0) {
+                int t2 = r - 1;
+
+                if (t2 >= l && !ad_times.contains(t2)) {
+                    ad_times.add(t2);
                 }
             }
-            if (!exists)
-                ads.add(r);
         }
     }
-
-    return ads.getSize();
+    return ad_times.getSize();
 }
 
-// int main() {
-//     int n;
-//     std::cin >> n;
-
-//     Array<Client> arr;
-//     for (int i = 0; i < n; ++i) {
-//         Client client;
-//         std::cin >> client;
-//         arr.add(client);
-//     }
-
-//     MergeSortComparator<Client> comp;
-//     Array<Client> sorted = mergeSort(arr, comp);
-
-//     int result = calculateMinAdvertisements(sorted);
-//     std::cout << result << std::endl;
-
-//     return 0;
-// }
-
 int main() {
-    auto test = [](std::initializer_list<Client> list) {
-        Array<Client> arr;
-        for (auto& c : list)
-            arr.add(c);
-        MergeSortComparator<Client> comp;
-        Array<Client> sorted = mergeSort(arr, comp);
-        int result = calculateMinAdvertisements(sorted);
-        return result;
-    };
+    int n;
 
-    std::cout << "=== TESTS ===" << std::endl;
+    if (!(std::cin >> n))
+        return 0;
 
-    // пример из условия
-    std::cout << "Test 1: " << test({{1, 10}, {10, 12}, {1, 10}, {1, 10}, {23, 24}}) << " (ожидается 5)"
-              << std::endl;
+    Array<Client> arr;
+    for (int i = 0; i < n; ++i) {
+        Client client;
+        if (!(std::cin >> client))
+            break;
+        arr.add(client);
+    }
 
-    // один клиент
-    std::cout << "Test 2: " << test({{1, 5}}) << " (ожидается 2)" << std::endl;
+    MergeSortComparator<Client> comp;
+    Array<Client> sorted = mergeSort(arr, comp);
 
-    // два полностью совпадающих клиента
-    std::cout << "Test 3: " << test({{1, 5}, {1, 5}}) << " (ожидается 2)" << std::endl;
-
-    // клиенты без пересечения
-    std::cout << "Test 4: " << test({{1, 2}, {3, 4}, {5, 6}}) << " (ожидается 6)" << std::endl;
-
-    // клиенты, частично перекрывающиеся
-    std::cout << "Test 5: " << test({{1, 4}, {2, 5}, {3, 6}}) << " (ожидается 2)" << std::endl;
-
-    // длинные пересечения
-    std::cout << "Test 6: " << test({{1, 10}, {2, 9}, {3, 8}, {4, 7}}) << " (ожидается 2)" << std::endl;
-
-    // один уходит в момент прихода другого
-    std::cout << "Test 7: " << test({{1, 3}, {3, 5}, {5, 7}}) << " (ожидается 4)" << std::endl;
-
-    // много коротких интервалов внутри большого
-    std::cout << "Test 8: " << test({{1, 20}, {5, 6}, {6, 7}, {7, 8}, {8, 9}}) << " (ожидается 5)"
-              << std::endl;
+    int result = calculateMinAdvertisements(sorted);
+    std::cout << result << std::endl;
 
     return 0;
 }
